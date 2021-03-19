@@ -1,0 +1,158 @@
+---
+title: "Example"
+output: html_document
+---
+Before performing this Example code, please run the **Functions.R** file firstly.
+
+# Show properties of different similarity graphs
+
+I create this dataset which contains two data areas. These two data regions are created to have different density for investigating the performance of different similarity graphs.
+
+The similarity_graph $S$ are built by Gaussian similarity function with sigma being 1. The $k$ parameter of mutual k-near ann k-near graphs is 10; the $\epsilon$ of $\epsilon$-neighborhood graph is 0.02.
+
+
+```{r,echo = false}
+# Load required library
+library(mixtools)
+library(MASS)
+library(corpcor)
+library(conclust)
+```
+
+
+
+```{r,results='hide'}
+
+norm_2dim = mvrnorm(n = 50, mu = c(0,-1), Sigma = diag(0.15,2), tol = 1e-6, empirical = FALSE, EISPACK = FALSE)
+mid_moon = matrix(ncol = 2,nrow = 50)
+for (i in 1:50) {
+  mid_moon[i,1]  =runif(1,min = 0,max = 1.5)
+  mid_moon[i,2] = (mid_moon[i,1]-0.75)^2 - rnorm(1,mean = -0.05,sd = 0.1)
+}
+data_2dim = rbind(mid_moon,norm_2dim)
+
+mutual_k_near = 10
+k_near = 10
+par(mfrow=c(2,2))
+Similarity_graph = Build_similarity_graph(data_2dim)
+plot(data_2dim,main = paste("Two dimensional data"),ylab = "",xlab = "")
+# Epsilon graph
+epsilon = 0.02
+W_matrix = Build_W(Similarity_graph = Similarity_graph,epsilon =  epsilon)
+plot(data_2dim,main = paste("Epsilon graph, epsilon =",epsilon,sep = ""),ylab = "",xlab = "")
+for (i in 1:nrow(data_2dim)) {
+  for (j in 1:nrow(data_2dim)) {
+    if(W_matrix[i,j]!=1 && W_matrix[i,j]!=0){
+      par(new=TRUE)
+      lines(data_2dim[c(i,j),],col = 4)
+    }
+  }
+}
+
+
+Similarity_graph = Build_similarity_graph(data_2dim)
+# K-nearest graph
+W_matrix = Build_W(Similarity_graph = Similarity_graph,k_near = k_near)
+plot(data_2dim,main = paste("K-nearest graph, k =",k_near,sep = ""),ylab = "",xlab = "")
+for (i in 1:nrow(data_2dim)) {
+  for (j in 1:nrow(data_2dim)) {
+    if(W_matrix[i,j]!=1 && W_matrix[i,j]!=0){
+      par(new=TRUE)
+      lines(data_2dim[c(i,j),],col = 4)
+    }
+  }
+}
+
+# Mutual K-nearest graph
+W_matrix = Build_W(Similarity_graph = Similarity_graph,mutual_k_near = mutual_k_near)
+plot(data_2dim,main = paste("Mutual K-nearest graph, k =",mutual_k_near,sep = ""),ylab = "",xlab = "")
+for (i in 1:nrow(data_2dim)) {
+  for (j in 1:nrow(data_2dim)) {
+    if(W_matrix[i,j]!=1 && W_matrix[i,j]!=0){
+      par(new=TRUE)
+      lines(data_2dim[c(i,j),],col = 4)
+    }
+  }
+}
+```
+
+# Perform the spectral clustering using a toy example
+
+Simulate the dataset from a mixture of two Gaussians.
+
+We can control the standard deviation of this Multivariate Gaussian mixture model by changing the sigma matrix. The higher the standard deviation, the closer these two data areas.
+
+```{r,results='hide'}
+library(mixtools)
+library(MASS)
+library(corpcor)
+
+set.seed(1)
+n = 200
+lambda = rep(1, 2)/2
+mu = matrix(c(1,4,8,12),ncol = 2, nrow = 2)
+sigma = matrix(0.6,2,2)
+data_2dim_sd0.5 = rmvnormmix(n, lambda, mu, sigma)
+data_2dim_sd0.5 = data_2dim_sd0.5[order(data_2dim_sd0.5[,1],decreasing = FALSE),]
+plot(data_2dim_sd0.5,main = paste("Two dimensional data; sd 0.5"),ylab = "",xlab = "")
+
+set.seed(1)
+sigma = matrix(1.5,2,2)
+data_2dim_sd1.5 = rmvnormmix(n, lambda, mu, sigma)
+data_2dim_sd1.5 = data_2dim_sd1.5[order(data_2dim_sd1.5[,1],decreasing = FALSE),]
+plot(data_2dim_sd1.5,main = paste("Two dimensional data; sd 1.5"),ylab = "",xlab = "")
+```
+
+Unnormalized graph laplacian using dataset with standard deviation 0.5
+
+```{r,results='hide'}
+par(mfrow=c(2,2))
+test = Spectral_clustering(data = data_2dim_sd0.5,sigma = 1,k_near=10, mutual_k_near = NULL,epsilon = NULL, Full_graph = FALSE,Graph_laplacian = "Unnormalized",Number_of_cluster = 2)
+plot(rev(test$eigen_values)[1:10],main = "The smallest 10 eigenvalues",ylab = "Value",xlab = "The smallest k eigenvalue")
+plot(test$selected_vectors[,2],type = "l",main = "The first eigenvector of eigenvalue 0",xlab = "The kth coordinate",ylab = "")
+plot(test$selected_vectors[,1],type = "l",main = "The second eigenvector of eigenvalue 0",xlab = "The kth coordinate",ylab = "")
+
+```
+
+Unnormalized graph laplacian using dataset with standard deviation 1.5
+
+```{r,results='hide'}
+par(mfrow=c(2,2))
+test = Spectral_clustering(data = data_2dim_sd1.5,sigma = 1,k_near=10, mutual_k_near = NULL,epsilon = NULL, Full_graph = FALSE,Graph_laplacian = "Unnormalized",Number_of_cluster = 2)
+plot(rev(test$eigen_values)[1:10],main = "The smallest 10 eigenvalues",ylab = "Value",xlab = "The smallest k eigenvalue")
+plot(test$selected_vectors[,2],type = "l",main = "The first eigenvector of eigenvalue 0",xlab = "The kth coordinate",ylab = "")
+plot(test$selected_vectors[,1],type = "l",main = "The second eigenvector of eigenvalue 0",xlab = "The kth coordinate",ylab = "")
+
+```
+
+Unnormalized graph laplacian using dataset with standard deviation 1.5, using four eigenvectors
+
+You can use more eigenvectors by changing the parameter value of **more**
+
+
+```{r,results='hide'}
+par(mfrow=c(2,2))
+test = Spectral_clustering_moreeigenvectors(data = data_2dim_sd1.5,sigma = 1,more = 2,k_near=10, mutual_k_near = NULL,epsilon = NULL, Full_graph = FALSE,Graph_laplacian = "Unnormalized",Number_of_cluster = 2)
+plot(rev(test$eigen_values)[1:10],main = "The smallest 10 eigenvalues",ylab = "Value",xlab = "The smallest k eigenvalue")
+plot(test$selected_vectors[,2],type = "l",main = "The first eigenvector of eigenvalue 0",xlab = "The kth coordinate",ylab = "")
+plot(test$selected_vectors[,1],type = "l",main = "The second eigenvector of eigenvalue 0",xlab = "The kth coordinate",ylab = "")
+
+```
+
+
+
+Normalized graph laplacian using dataset with standard deviation 1.5
+
+```{r,results='hide'}
+par(mfrow=c(2,2))
+test = Spectral_clustering(data = data_2dim_sd1.5,sigma = 1,k_near=10, mutual_k_near = NULL,epsilon = NULL, Full_graph = FALSE,Graph_laplacian = "Normalized_rw",Number_of_cluster = 2)
+plot(rev(test$eigen_values)[1:10],main = "The smallest 10 eigenvalues",ylab = "Value",xlab = "The smallest k eigenvalue")
+plot(test$selected_vectors[,2],type = "l",main = "The first eigenvector of eigenvalue 0",xlab = "The kth coordinate",ylab = "")
+plot(test$selected_vectors[,1],type = "l",main = "The second eigenvector of eigenvalue 0",xlab = "The kth coordinate",ylab = "")
+
+
+```
+
+
+
+
